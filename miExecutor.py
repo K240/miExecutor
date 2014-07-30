@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, QtCore
+from PySide import QtGui, QtCore
 import maya.cmds as cmds
 import maya.mel as mel
 from pymel.all import mel as pa
@@ -7,13 +7,9 @@ import glob
 import os
 import json
 import sys
+import shiboken
 
-try:
-    import sip
-except ImportError:
-    import PyQt4.sip as sip
-
-MAYA_SCRIPT_DIR = cmds.internalVar(userScriptDir=True)
+current_dir = os.path.dirname(__file__)
 
 # Define mel procedure to call the previous function
 mel.eval("""
@@ -63,7 +59,7 @@ for module in moduleObjects:
 
 def getMayaWindow():
     ptr = mui.MQtUtil.mainWindow()
-    return sip.wrapinstance(long(ptr), QtCore.QObject)
+    return shiboken.wrapInstance(long(ptr), QtGui.QMainWindow)
 
 
 class UI(QtGui.QWidget):
@@ -109,24 +105,22 @@ class UI(QtGui.QWidget):
 
         # Load json files as dicrectory.
         # key is command name, and its item is icon path.
-        commandFile = os.path.normpath(os.path.join(MAYA_SCRIPT_DIR, "miExecutorCommands.json"))
-        try:
-            jsonDict = json.load(open(commandFile))
-        except IOError:
-            jsonDict = {}
+        commandFile = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "commands.json"))
+        jsonDict = json.load(open(commandFile))
 
         # Create a list of command names
         self.commands = [i for i in jsonDict]
 
         # Add all command names and icon paths to the the model(self.model)
-        for num, command in enumerate(jsonDict):
+        for i, command in enumerate(jsonDict):
             item = QtGui.QStandardItem(command)
             if os.path.isabs(jsonDict[command]) is True:
                 iconPath = os.path.normpath(jsonDict[command])
                 item.setIcon(QtGui.QIcon(iconPath))
             else:
                 item.setIcon(QtGui.QIcon(":%s" % jsonDict[command]))
-            self.model.setItem(num, 0, item)
+            self.model.setItem(i, 0, item)
 
         # Store the model(self.model) into the sortFilterProxy model
         self.filteredModel = QtGui.QSortFilterProxyModel(self)
@@ -168,7 +162,7 @@ class UI(QtGui.QWidget):
         return self._selected
 
     def getCurrentCompletion(self, *args):
-        self.curCompPrefix = self.completer.completionPrefix().toLower()
+        self.curCompPrefix = self.completer.completionPrefix().lower()
         self.curCompList = [i for i
                             in self.commands
                             if self.curCompPrefix in i.lower()]
@@ -258,7 +252,8 @@ def mergeCommandDict():
     miExec = MainClass()
     for item in baseNames:
         exec("miExec.commandDict.update(miExec.%sDict)" % item)
-    outFilePath = os.path.normpath(os.path.join(MAYA_SCRIPT_DIR, "miExecutorCommands.json"))
+    outFilePath = os.path.normpath(
+        os.path.join(current_dir, "commands.json"))
 
     with open(outFilePath, 'w') as outFile:
         json.dump(miExec.commandDict,
