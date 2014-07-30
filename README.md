@@ -20,7 +20,7 @@ Differences between this script and the one in Node Editor in behavior.
 
 ## Requirements
 
-PyQt4
+~~PyQt4~~ PySide
 
 ## Installation
 
